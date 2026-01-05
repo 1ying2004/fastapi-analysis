@@ -1,13 +1,13 @@
 # FastAPI Analysis
 
-分析FastAPI开源仓库的工具项目。
+深度分析FastAPI开源仓库。
 
-## 简介
+## 功能
 
-本项目用于深度分析FastAPI仓库，包括：
-- Git历史分析
-- 代码结构分析
-- 数据可视化
+- **Git历史分析**: 完整commit历史分析
+- **代码结构分析**: AST/libcst代码扫描  
+- **数据可视化**: matplotlib/seaborn图表
+- **GitHub API**: Issues/PRs数据采集
 
 ## 安装
 
@@ -19,4 +19,14 @@ pip install -r requirements.txt
 
 ```bash
 python src/main.py
+```
+
+## 项目结构
+
+```
+src/
+  ├── collectors/    # 数据采集
+  ├── analyzers/     # 代码分析
+  ├── visualizers/   # 可视化
+  └── utils/         # 工具函数
 ```
