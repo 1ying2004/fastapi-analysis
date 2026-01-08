@@ -1,4 +1,7 @@
 import subprocess
+from datetime import datetime
+import pandas as pd
+import os
 
 def get_commits(repo_path, max_count=10000):
     cmd = ['git', 'log', f'--max-count={max_count}', '--format=%H|%an|%ae|%ad|%s', '--date=iso']
@@ -19,7 +22,7 @@ def get_commits(repo_path, max_count=10000):
             continue
         
         hash_val, author, email, date, msg = parts
-        commits.append({
+       commits.append({
             'hash': hash_val,
             'author': author,
             'email': email,
@@ -29,3 +32,11 @@ def get_commits(repo_path, max_count=10000):
     
     print(f"Collected {len(commits)} commits")
     return commits
+
+def save_to_csv(commits, output_dir='data'):
+    os.makedirs(output_dir, exist_ok=True)
+    filepath = os.path.join(output_dir, 'commits.csv')
+    
+    df = pd.DataFrame(commits)
+    df.to_csv(filepath, index=False, encoding='utf-8-sig')
+    print(f"Saved to {filepath}")
