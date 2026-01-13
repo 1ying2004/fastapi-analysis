@@ -1,23 +1,20 @@
 # FastAPI Analysis
 
-深度分析FastAPI开源仓库。
+FastAPI 开源仓库深度分析工具。
 
 ## 功能
 
-- **Git历史分析**: 完整commit历史分析
-- **代码结构分析**: AST/libcst代码扫描  
-- **数据可视化**: matplotlib/seaborn图表
-- **GitHub API**: Issues/PRs数据采集
+- **数据采集**: Git历史 + GitHub API
+- **代码分析**: AST/libcst静态分析 + pysnooper动态追踪 + z3符号执行
+- **可视化**: matplotlib/seaborn图表 + 词云
 
-## 安装
+## 快速开始
 
 ```bash
+# 安装
 pip install -r requirements.txt
-```
 
-## 使用
-
-```bash
+# 运行
 python src/main.py
 ```
 
@@ -25,8 +22,28 @@ python src/main.py
 
 ```
 src/
-  ├── collectors/    # 数据采集
-  ├── analyzers/     # 代码分析
-  ├── visualizers/   # 可视化
-  └── utils/         # 工具函数
+├── collectors/     # 数据采集
+│   ├── git_collector.py
+│   └── github_api.py
+├── analyzers/      # 代码分析
+│   ├── ast_analyzer.py
+│   ├── libcst_analyzer.py
+│   ├── dynamic_tracer.py
+│   └── z3_analysis.py
+├── visualizers/    # 可视化
+│   ├── charts.py
+│   └── heatmap.py
+└── utils/          # 工具
+    ├── helpers.py
+    └── cache.py
 ```
+
+## 输出
+
+- `data/commits.csv` - 提交数据
+- `data/commits.json` - JSON格式数据
+- `output/*.png` - 可视化图表
+
+## 团队
+
+5人协作开发
