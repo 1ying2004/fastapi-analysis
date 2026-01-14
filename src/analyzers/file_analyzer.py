@@ -1,15 +1,88 @@
 """
-文件分析器 - 分析项目文件结构
+代码文件分析模块
+
+分析Python文件的结构和内容
 """
 import os
-from collections import defaultdict
+import ast
 
-def scan_directory(path, extensions=['.py']):
-    """扫描目录获取文件列表"""
+
+def analyze_file_structure(filepath):
+    """
+    分析单个文件结构
+    
+    Args:
+        filepath: 文件路径
+    
+    Returns:
+        文件结构信息字典
+    """
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+            lines = content.split('\n')
+        
+        tree = ast.parse(content)
+    except Exception as e:
+        return {'error': str(e), 'filepath': filepath}
+    
+    functions = []
+    classes = []
+    imports = []
+    
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            functions.append({
+                'name': node.name,
+                'lineno': node.lineno,
+                'args': len(node.args.args),
+                'decorators': len(node.decorator_list)
+            })
+        elif isinstance(node, ast.ClassDef):
+            methods = [n.name for n in node.body if isinstance(n, ast.FunctionDef)]
+            classes.append({
+                'name': node.name,
+                'lineno': node.lineno,
+                'methods': methods,
+                'bases': len(node.bases)
+            })
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                imports.append(node.module)
+    
+    return {
+        'filepath': filepath,
+        'lines': len(lines),
+        'functions': functions,
+        'classes': classes,
+        'imports': imports,
+        'function_count': len(functions),
+        'class_count': len(classes),
+        'import_count': len(imports)
+    }
+
+
+def scan_directory(path, extensions=None):
+    """
+    扫描目录获取所有文件
+    
+    Args:
+        path: 目录路径
+        extensions: 文件扩展名列表
+    
+    Returns:
+        文件路径列表
+    """
+    if extensions is None:
+        extensions = ['.py']
+    
     files = []
+    
     for root, dirs, filenames in os.walk(path):
-        # 忽略隐藏目录
-        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d != '__pycache__']
         
         for f in filenames:
             if any(f.endswith(ext) for ext in extensions):
@@ -17,29 +90,27 @@ def scan_directory(path, extensions=['.py']):
     
     return files
 
-def get_line_counts(filepath):
-    """统计文件行数"""
-    try:
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-            lines = f.readlines()
-        
-        total = len(lines)
-        blank = sum(1 for l in lines if not l.strip())
-        comment = sum(1 for l in lines if l.strip().startswith('#'))
-        code = total - blank - comment
-        
-        return {'total': total, 'code': code, 'blank': blank, 'comment': comment}
-    except:
-        return {'total': 0, 'code': 0, 'blank': 0, 'comment': 0}
 
-def analyze_project(path):
-    """分析整个项目"""
+def get_project_summary(path):
+    """
+    获取项目整体摘要
+    """
     files = scan_directory(path)
-    results = []
     
-    for f in files:
-        stats = get_line_counts(f)
-        stats['file'] = os.path.relpath(f, path)
-        results.append(stats)
+    total_lines = 0
+    total_functions = 0
+    total_classes = 0
     
-    return results
+    for filepath in files:
+        result = analyze_file_structure(filepath)
+        if 'error' not in result:
+            total_lines += result['lines']
+            total_functions += result['function_count']
+            total_classes += result['class_count']
+    
+    return {
+        'total_files': len(files),
+        'total_lines': total_lines,
+        'total_functions': total_functions,
+        'total_classes': total_classes
+    }
