@@ -1,10 +1,13 @@
 """
-分支分析器
+分支采集模块
+
+获取Git仓库的分支信息。
 """
 import subprocess
 
+
 def get_branches(repo_path):
-    """获取分支列表"""
+    """获取所有分支列表"""
     cmd = ['git', 'branch', '-a']
     try:
         output = subprocess.check_output(cmd, cwd=repo_path, encoding='utf-8')
@@ -19,8 +22,9 @@ def get_branches(repo_path):
     
     return branches
 
+
 def get_current_branch(repo_path):
-    """获取当前分支"""
+    """获取当前分支名"""
     cmd = ['git', 'branch', '--show-current']
     try:
         output = subprocess.check_output(cmd, cwd=repo_path, encoding='utf-8')
@@ -28,8 +32,9 @@ def get_current_branch(repo_path):
     except:
         return None
 
+
 def get_branch_commits(repo_path, branch):
-    """获取分支提交数"""
+    """获取指定分支的提交数"""
     cmd = ['git', 'rev-list', '--count', branch]
     try:
         output = subprocess.check_output(cmd, cwd=repo_path, encoding='utf-8')
