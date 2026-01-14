@@ -1,11 +1,18 @@
 """
-消息分析器 - 分析commit消息
+消息分析模块
+
+分析Git提交消息，按类型分类，提取关键词。
 """
 import re
 from collections import Counter
 
+
 def categorize_commit(message):
-    """分类提交消息"""
+    """
+    分类单条提交消息
+    
+    按conventional commits规范分类
+    """
     msg = message.lower()
     
     if msg.startswith('feat'):
@@ -27,8 +34,9 @@ def categorize_commit(message):
     else:
         return 'other'
 
+
 def analyze_messages(commits):
-    """分析所有提交消息"""
+    """分析所有提交消息的类型分布"""
     categories = Counter()
     
     for c in commits:
@@ -37,12 +45,18 @@ def analyze_messages(commits):
     
     return dict(categories)
 
+
 def extract_keywords(commits, top_n=20):
-    """提取关键词"""
+    """
+    从提交消息中提取高频关键词
+    
+    Args:
+        commits: 提交列表
+        top_n: 返回top N个关键词
+    """
     words = []
     for c in commits:
         msg = c['message']
-        # 简单分词
         tokens = re.findall(r'\b[a-zA-Z]{3,}\b', msg.lower())
         words.extend(tokens)
     
