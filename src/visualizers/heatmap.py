@@ -1,19 +1,16 @@
+"""
+热力图可视化
+"""
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
-from src.config import CHART_DPI, FONT_PATH
+from src.visualizers.font_config import configure_matplotlib
 
-def setup_style():
-    """设置绘图风格"""
-    sns.set_style("whitegrid")
-    plt.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei']
-    plt.rcParams['axes.unicode_minus'] = False
-    plt.rcParams['figure.dpi'] = CHART_DPI
+configure_matplotlib()
 
 def plot_commit_heatmap(commits_data, output_dir='output'):
     """绘制提交热力图"""
-    setup_style()
     os.makedirs(output_dir, exist_ok=True)
     
     df = pd.DataFrame(commits_data)
@@ -24,14 +21,24 @@ def plot_commit_heatmap(commits_data, output_dir='output'):
     
     pivot = df.groupby(['weekday', 'hour']).size().unstack(fill_value=0)
     
-    plt.figure(figsize=(14, 6))
-    sns.heatmap(pivot, cmap='YlOrRd', annot=False,
-                xticklabels=range(24),
-                yticklabels=['周一','周二','周三','周四','周五','周六','周日'])
-    plt.xlabel('小时', fontsize=12)
-    plt.ylabel('星期', fontsize=12)
-    plt.title('提交时间热力图', fontsize=14, fontweight='bold')
+    for i in range(7):
+        if i not in pivot.index:
+            pivot.loc[i] = 0
+    pivot = pivot.sort_index()
+    
+    fig, ax = plt.subplots(figsize=(16, 8))
+    
+    sns.heatmap(pivot, cmap='YlOrRd', annot=False, ax=ax,
+                cbar_kws={'label': '提交数'})
+    
+    ax.set_xticklabels(range(24), fontsize=10)
+    ax.set_yticklabels(['周一','周二','周三','周四','周五','周六','周日'], 
+                       fontsize=11, rotation=0)
+    ax.set_xlabel('小时', fontsize=14, fontweight='bold')
+    ax.set_ylabel('星期', fontsize=14, fontweight='bold')
+    ax.set_title('提交时间热力图', fontsize=18, fontweight='bold', pad=20)
+    
     plt.tight_layout()
-    plt.savefig(f'{output_dir}/commit_heatmap.png', dpi=CHART_DPI, bbox_inches='tight')
+    plt.savefig(f'{output_dir}/commit_heatmap.png', dpi=150, bbox_inches='tight', facecolor='white')
     plt.close()
-    print(f"✓ 保存: {output_dir}/commit_heatmap.png")
+    print(f"✓ 热力图: {output_dir}/commit_heatmap.png")
