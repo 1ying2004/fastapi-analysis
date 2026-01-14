@@ -1,8 +1,7 @@
 """
 analyzers包
 """
-from src.analyzers.ast_analyzer import analyze_file, calculate_complexity
-from src.analyzers.libcst_analyzer import analyze_with_libcst
+from src.analyzers.ast_analyzer import deep_analyze_file, analyze_project_ast
 from src.analyzers.stats import generate_report
 
-__all__ = ['analyze_file', 'calculate_complexity', 'analyze_with_libcst', 'generate_report']
+__all__ = ['deep_analyze_file', 'analyze_project_ast', 'generate_report']
