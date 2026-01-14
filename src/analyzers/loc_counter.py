@@ -1,10 +1,21 @@
 """
-代码行数统计
+代码行数统计模块
+
+统计Python项目的代码行数、空行数和注释行数。
 """
 import os
 
+
 def count_lines(filepath):
-    """统计文件行数"""
+    """
+    统计单个文件的行数
+    
+    Args:
+        filepath: 文件路径
+    
+    Returns:
+        包含total, code, blank, comment的字典
+    """
     try:
         with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
             lines = f.readlines()
@@ -24,12 +35,22 @@ def count_lines(filepath):
     except:
         return None
 
+
 def analyze_project_loc(path):
-    """分析项目代码行数"""
+    """
+    分析整个项目的代码行数
+    
+    Args:
+        path: 项目根目录
+    
+    Returns:
+        项目整体行数统计
+    """
     results = {'total': 0, 'code': 0, 'blank': 0, 'comment': 0, 'files': 0}
     
     for root, dirs, files in os.walk(path):
-        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        # 排除隐藏目录和缓存
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d != '__pycache__']
         
         for f in files:
             if not f.endswith('.py'):
