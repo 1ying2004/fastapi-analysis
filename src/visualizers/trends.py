@@ -16,7 +16,8 @@ def plot_monthly_trend(commits, output_dir='output'):
     os.makedirs(output_dir, exist_ok=True)
     
     df = pd.DataFrame(commits)
-    df['date'] = pd.to_datetime(df['date'])
+    df['date'] = pd.to_datetime(df['date'], errors='coerce', utc=True)
+    df = df.dropna(subset=['date'])
     df['month'] = df['date'].dt.to_period('M')
     
     monthly = df.groupby('month').size()
@@ -38,7 +39,9 @@ def plot_cumulative(commits, output_dir='output'):
     os.makedirs(output_dir, exist_ok=True)
     
     df = pd.DataFrame(commits)
-    df['date'] = pd.to_datetime(df['date']).dt.date
+    df['date'] = pd.to_datetime(df['date'], errors='coerce', utc=True)
+    df = df.dropna(subset=['date'])
+    df['date'] = df['date'].dt.date
     df = df.sort_values('date')
     df['cumulative'] = range(1, len(df) + 1)
     
