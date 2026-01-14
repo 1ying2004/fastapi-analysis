@@ -21,7 +21,9 @@ def plot_commits_by_year(commits_data, output_dir='output'):
     os.makedirs(output_dir, exist_ok=True)
     
     df = pd.DataFrame(commits_data)
-    df['year'] = pd.to_datetime(df['date']).dt.year
+    df['date'] = pd.to_datetime(df['date'], errors='coerce', utc=True)
+    df = df.dropna(subset=['date'])
+    df['year'] = df['date'].dt.year
     yearly = df.groupby('year').size()
     
     plt.figure(figsize=(14, 7))
@@ -44,7 +46,7 @@ def plot_commits_by_year(commits_data, output_dir='output'):
 def plot_author_pie(commits_data, output_dir='output'):
     """作者贡献饼图"""
     setup_fonts()
-   os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
     
     df = pd.DataFrame(commits_data)
     authors = df['author'].value_counts().head(10)

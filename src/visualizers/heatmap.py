@@ -17,7 +17,8 @@ def plot_commit_heatmap(commits_data, output_dir='output'):
     os.makedirs(output_dir, exist_ok=True)
     
     df = pd.DataFrame(commits_data)
-    df['date'] = pd.to_datetime(df['date'])
+    df['date'] = pd.to_datetime(df['date'], errors='coerce', utc=True)
+    df = df.dropna(subset=['date'])
     df['weekday'] = df['date'].dt.dayofweek
     df['hour'] = df['date'].dt.hour
     

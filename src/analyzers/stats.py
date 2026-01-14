@@ -13,7 +13,8 @@ def get_author_stats(commits):
 def get_time_distribution(commits):
     """统计时间分布"""
     df = pd.DataFrame(commits)
-    df['date'] = pd.to_datetime(df['date'])
+    df['date'] = pd.to_datetime(df['date'], errors='coerce', utc=True)
+    df = df.dropna(subset=['date'])
     
     return {
         'by_year': df.groupby(df['date'].dt.year).size().to_dict(),
