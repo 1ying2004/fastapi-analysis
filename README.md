@@ -1,6 +1,8 @@
 # FastAPI Analysis
 
-FastAPI 开源仓库深度分析工具。
+FastAPI 仓库深度分析工具。
+
+[![CI](https://github.com/1ying2004/fastapi-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/1ying2004/fastapi-analysis/actions/workflows/ci.yml)
 
 ## 功能
 
@@ -11,10 +13,7 @@ FastAPI 开源仓库深度分析工具。
 ## 快速开始
 
 ```bash
-# 安装
 pip install -r requirements.txt
-
-# 运行
 python src/main.py
 ```
 
@@ -23,19 +22,9 @@ python src/main.py
 ```
 src/
 ├── collectors/     # 数据采集
-│   ├── git_collector.py
-│   └── github_api.py
 ├── analyzers/      # 代码分析
-│   ├── ast_analyzer.py
-│   ├── libcst_analyzer.py
-│   ├── dynamic_tracer.py
-│   └── z3_analysis.py
 ├── visualizers/    # 可视化
-│   ├── charts.py
-│   └── heatmap.py
 └── utils/          # 工具
-    ├── helpers.py
-    └── cache.py
 ```
 
 ## 输出
