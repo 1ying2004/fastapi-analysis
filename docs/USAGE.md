@@ -1,90 +1,74 @@
 # 使用指南
 
-## 快速开始
+## 运行模式
+
+### 1. 完整分析模式（默认）
 
 ```bash
 python src/main.py
 ```
 
-## 输出目录结构
+执行流程：
+1. Git数据采集 - 获取全部提交历史
+2. GitHub数据采集 - 使用缓存，限流>2分钟跳过
+3. AST代码分析 - 分析所有Python文件
+4. 统计分析 - 生成报告
+5. 生成图表 - 25+张可视化图表
 
-```
-data/                    # 采集的数据
-├── commits.csv          # 提交记录CSV
-├── commits.json         # 提交记录JSON
-├── ast_analysis.json    # AST分析结果
-├── report.json          # 统计报告
-└── loc_stats.json       # 代码行数统计
+### 2. 数据获取模式
 
-output/                  # 可视化结果
-├── commits_by_year.png  # 年度提交图
-├── authors_pie.png      # 贡献者饼图
-├── commit_heatmap.png   # 热力图
-├── monthly_trend.png    # 月度趋势
-├── cumulative.png       # 累计增长
-├── ...
-└── report.html          # HTML报告
+```bash
+python src/main.py --fetch
 ```
 
-## 模块使用示例
+专门用于获取全量GitHub数据：
+- 完整等待API限流（无超时）
+- 适合首次运行或数据更新
+- 获取全部Issues、PRs、Contributors
 
-### AST分析
+## 输出说明
+
+### 数据文件 (data/)
+
+| 文件 | 内容 |
+|------|------|
+| commits.csv/json | Git提交记录 |
+| issues.json | GitHub Issues |
+| pull_requests.json | Pull Requests |
+| contributors.json | 贡献者 |
+| ast_analysis.json | AST分析结果 |
+| report.json | 统计报告 |
+| loc_stats.json | 代码行数 |
+| message_stats.json | 消息类型 |
+
+### 图表文件 (output/)
+
+共25+张PNG图表，包括：
+- 年度/月度提交统计
+- 作者贡献分析
+- 3D可视化
+- Issues/PR分析
+- 代码复杂度
+- 依赖关系
+- 词云
+
+## 自定义配置
+
+编辑 `src/config.py`：
 
 ```python
-from src.analyzers.ast_analyzer import analyze_project_ast
-
-result = analyze_project_ast('/path/to/project')
-print(f"函数数: {result['summary']['total_functions']}")
-print(f"类数: {result['summary']['total_classes']}")
+REPO_PATH = '../../your-repo'      # 目标仓库路径
+GITHUB_REPO = 'owner/repo'         # GitHub仓库名
+GITHUB_TOKEN = 'your_token'        # 可选，提高API限制
 ```
 
-### libcst分析
+## 常见问题
 
-```python
-from src.analyzers.libcst_analyzer import analyze_with_libcst
+### Q: API限流怎么办？
+A: 默认模式会跳过长时间限流，使用`--fetch`模式完整等待
 
-result = analyze_with_libcst('/path/to/file.py')
-print(f"导入: {result['imports']}")
-print(f"函数: {result['functions']}")
-```
+### Q: 图表中文乱码？
+A: 已内置中文字体配置，无需额外设置
 
-### pysnooper追踪
-
-```python
-from src.analyzers.dynamic_tracer import demo_pysnooper
-
-demo_pysnooper()
-```
-
-### z3符号执行
-
-```python
-from src.analyzers.z3_analysis import symbolic_execution_demo
-
-symbolic_execution_demo()
-```
-
-### 健康评分
-
-```python
-from src.analyzers.health_scorer import generate_health_report
-
-metrics = {
-    'total_commits': 6545,
-    'contributors': 873,
-    'avg_complexity': 1.41,
-    'test_coverage': 50
-}
-report = generate_health_report(metrics)
-print(f"评分: {report['score']}, 等级: {report['grade']}")
-```
-
-## 自定义分析
-
-修改 `src/config.py` 配置：
-
-```python
-REPO_PATH = '../../your-repo'  # 目标仓库路径
-DATA_DIR = 'data'              # 数据输出目录
-OUTPUT_DIR = 'output'          # 图表输出目录
-```
+### Q: 如何更新数据？
+A: 删除data/目录下对应JSON文件，重新运行

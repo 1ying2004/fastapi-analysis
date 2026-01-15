@@ -4,14 +4,14 @@ FastAPI仓库深度分析工具 - 主程序
 集成所有分析模块，提供完整的仓库分析功能
 使用技术栈：ast, libcst, pysnooper, z3-solver
 
-功能模块：
-- Git历史采集和分析
-- GitHub Issues/PR采集
-- 贡献者分析
-- AST静态代码分析
-- 依赖关系分析
-- 可视化图表生成
+用法:
+    python src/main.py          # 完整分析（使用缓存数据）
+    python src/main.py --fetch  # 仅获取全量数据（无限等待）
 """
+import sys
+import os
+import warnings
+
 from src.collectors.git_collector import get_commits, save_to_csv, save_to_json, get_file_stats
 from src.collectors.branch_collector import get_branches
 from src.collectors.tag_collector import get_tags
@@ -22,7 +22,6 @@ from src.analyzers.stats import generate_report
 from src.analyzers.message_analyzer import analyze_messages
 from src.analyzers.loc_counter import analyze_project_loc
 from src.analyzers.dependency_analyzer import build_dependency_graph
-from src.analyzers.health_scorer import generate_health_report
 from src.analyzers.pr_analyzer import analyze_prs, analyze_issues
 from src.visualizers.charts import plot_commits_by_year, plot_author_pie, generate_wordcloud
 from src.visualizers.heatmap import plot_commit_heatmap
@@ -37,15 +36,48 @@ from src.visualizers.issues_charts import plot_issues_by_state, plot_issues_time
 from src.visualizers.contributors_charts import plot_top_contributors, plot_contributions_distribution
 from src.visualizers.pr_charts import plot_pr_state, plot_pr_timeline, plot_top_pr_authors
 from src.visualizers.charts_3d import plot_3d_commits_by_year_month, plot_3d_author_activity
-from src.visualizers.report import generate_html_report
 from src.visualizers.font_config import configure_matplotlib
 from src.utils.persistence import ensure_data_dirs, save_json
 from src.config import REPO_PATH, DATA_DIR, OUTPUT_DIR, GITHUB_REPO
-import os
-import warnings
 
 warnings.filterwarnings('ignore')
 configure_matplotlib()
+
+
+def fetch_all_data():
+    """仅获取全量数据模式（无超时限制）"""
+    print("=" * 70)
+    print("   数据获取模式 - 获取全量GitHub数据")
+    print("   注意: 此模式会完整等待API限流")
+    print("=" * 70)
+    
+    ensure_data_dirs()
+    
+    print("\n[1/4] Git数据...")
+    commits = get_commits(REPO_PATH)
+    print(f"  ✓ 提交: {len(commits):,}")
+    save_to_csv(commits, DATA_DIR)
+    save_to_json(commits, DATA_DIR)
+    
+    print("\n[2/4] Issues...")
+    from src.collectors.issues_collector_full import IssuesCollectorFull
+    collector = IssuesCollectorFull(GITHUB_REPO)
+    issues = collector.fetch_all_issues()
+    print(f"  ✓ Issues: {len(issues)}")
+    
+    print("\n[3/4] Pull Requests...")
+    prs = collector.fetch_all_prs()
+    print(f"  ✓ PRs: {len(prs)}")
+    
+    print("\n[4/4] Contributors...")
+    from src.collectors.contributors_collector_full import ContributorsCollectorFull
+    contrib_collector = ContributorsCollectorFull(GITHUB_REPO)
+    contributors = contrib_collector.fetch_all()
+    print(f"  ✓ Contributors: {len(contributors)}")
+    
+    print("\n" + "=" * 70)
+    print("数据获取完成!")
+    print("=" * 70)
 
 
 def main():
@@ -57,9 +89,8 @@ def main():
     
     ensure_data_dirs()
     
-    # ========== 1. Git数据采集 ==========
     print("\n" + "=" * 70)
-    print("[1/7] Git数据采集")
+    print("[1/5] Git数据采集")
     print("=" * 70)
     
     commits = get_commits(REPO_PATH)
@@ -76,9 +107,8 @@ def main():
     tags = get_tags(REPO_PATH)
     print(f"  ✓ 分支: {len(branches)} | 标签: {len(tags)}")
     
-    # ========== 2. GitHub API采集 ==========
     print("\n" + "=" * 70)
-    print("[2/7] GitHub数据采集 (Issues/PR/Contributors)")
+    print("[2/5] GitHub数据采集")
     print("=" * 70)
     
     issues_collector = IssuesCollector(GITHUB_REPO)
@@ -99,9 +129,8 @@ def main():
     contributors_collector.save_contributors(contributors)
     print(f"  ✓ 贡献者: {len(contributors)} 位")
     
-    # ========== 3. AST代码分析 ==========
     print("\n" + "=" * 70)
-    print("[3/7] AST代码分析")
+    print("[3/5] AST代码分析")
     print("=" * 70)
     
     ast_results = analyze_project_ast(REPO_PATH)
@@ -112,9 +141,8 @@ def main():
     
     save_json(ast_results, os.path.join(DATA_DIR, 'ast_analysis.json'))
     
-    # ========== 4. 统计分析 ==========
     print("\n" + "=" * 70)
-    print("[4/7] 统计分析")
+    print("[4/5] 统计分析")
     print("=" * 70)
     
     report = generate_report(commits)
@@ -130,37 +158,8 @@ def main():
     save_json(loc_stats, os.path.join(DATA_DIR, 'loc_stats.json'))
     save_json(msg_stats, os.path.join(DATA_DIR, 'message_stats.json'))
     
-    # ========== 5. 健康评分 ==========
     print("\n" + "=" * 70)
-    print("[5/7] 项目健康评分")
-    print("=" * 70)
-    
-    issue_close_rate = 0
-    if issues:
-        closed = sum(1 for i in issues if i.get('state') == 'closed')
-        issue_close_rate = closed / len(issues) * 100 if issues else 0
-    
-    pr_merge_rate = 0
-    if prs:
-        merged = sum(1 for p in prs if p.get('merged_at'))
-        pr_merge_rate = merged / len(prs) * 100 if prs else 0
-    
-    health_metrics = {
-        'total_commits': len(commits),
-        'contributors': len(contributors),
-        'avg_complexity': sum(f.get('complexity', 1) for file in ast_results.get('files', []) for f in file.get('functions', [])) / max(1, summary.get('total_functions', 1)),
-        'issue_close_rate': issue_close_rate,
-        'pr_merge_rate': pr_merge_rate
-    }
-    health_report = generate_health_report(health_metrics)
-    print(f"  ✓ 健康评分: {health_report['score']} (等级: {health_report['grade']})")
-    for key, val in health_report.get('details', {}).items():
-        print(f"      {key}: {val}")
-    save_json(health_report, os.path.join(DATA_DIR, 'health_report.json'))
-    
-    # ========== 6. 生成图表 ==========
-    print("\n" + "=" * 70)
-    print("[6/7] 生成图表")
+    print("[5/5] 生成图表")
     print("=" * 70)
     
     plot_commits_by_year(commits, OUTPUT_DIR)
@@ -202,13 +201,6 @@ def main():
     text = ' '.join(c['message'] for c in commits)
     generate_wordcloud(text, OUTPUT_DIR)
     
-    # ========== 7. 生成报告 ==========
-    print("\n" + "=" * 70)
-    print("[7/7] 生成报告")
-    print("=" * 70)
-    
-    generate_html_report(commits)
-    
     summary_data = {
         'total_commits': len(commits),
         'contributors': report['unique_authors'],
@@ -220,13 +212,10 @@ def main():
         'code_lines': loc_stats['code'],
         'functions': summary.get('total_functions', 0),
         'classes': summary.get('total_classes', 0),
-        'health_score': health_report['score'],
-        'health_grade': health_report['grade'],
         'message_types': msg_stats
     }
     save_json(summary_data, os.path.join(OUTPUT_DIR, 'summary.json'))
     
-    # ========== 完成 ==========
     print("\n" + "=" * 70)
     print("分析完成!")
     print("=" * 70)
@@ -243,4 +232,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == '--fetch':
+        fetch_all_data()
+    else:
+        main()
