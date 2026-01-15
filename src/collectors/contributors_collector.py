@@ -56,6 +56,9 @@ class ContributorsCollector:
                 if resp.status_code == 403:
                     reset_time = int(resp.headers.get('X-RateLimit-Reset', 0))
                     wait_time = max(reset_time - int(time.time()), 60)
+                    if wait_time > 120:
+                        print(f"  ⚠ API限流需等待{wait_time}秒，跳过")
+                        break
                     print(f"  ⚠ API限流，等待{wait_time}秒...")
                     time.sleep(wait_time)
                     continue

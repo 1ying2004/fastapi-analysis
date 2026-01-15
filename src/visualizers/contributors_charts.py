@@ -65,8 +65,8 @@ def plot_top_contributors(contributors, output_dir='output', top_n=20):
         ax.text(width + max(values)*0.01, bar.get_y() + bar.get_height()/2,
                f'{int(width):,}', va='center', fontsize=10, fontweight='bold')
     
-    ax.set_xlabel('提交数', fontsize=14, fontweight='bold')
-    ax.set_title(f'Top {top_n} 贡献者', fontsize=18, fontweight='bold', pad=20)
+    ax.set_xlabel('贡献数 (GitHub API统计)', fontsize=14, fontweight='bold')
+    ax.set_title(f'Top {top_n} GitHub贡献者排行 (按GitHub贡献数)', fontsize=18, fontweight='bold', pad=20)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.grid(axis='x', alpha=0.3)

@@ -36,6 +36,7 @@ from src.visualizers.dependency_charts import plot_import_frequency, plot_file_d
 from src.visualizers.issues_charts import plot_issues_by_state, plot_issues_timeline, plot_top_issue_authors
 from src.visualizers.contributors_charts import plot_top_contributors, plot_contributions_distribution
 from src.visualizers.pr_charts import plot_pr_state, plot_pr_timeline, plot_top_pr_authors
+from src.visualizers.charts_3d import plot_3d_commits_by_year_month, plot_3d_author_activity
 from src.visualizers.report import generate_html_report
 from src.visualizers.font_config import configure_matplotlib
 from src.utils.persistence import ensure_data_dirs, save_json
@@ -134,14 +135,27 @@ def main():
     print("[5/7] 项目健康评分")
     print("=" * 70)
     
+    issue_close_rate = 0
+    if issues:
+        closed = sum(1 for i in issues if i.get('state') == 'closed')
+        issue_close_rate = closed / len(issues) * 100 if issues else 0
+    
+    pr_merge_rate = 0
+    if prs:
+        merged = sum(1 for p in prs if p.get('merged_at'))
+        pr_merge_rate = merged / len(prs) * 100 if prs else 0
+    
     health_metrics = {
         'total_commits': len(commits),
         'contributors': len(contributors),
         'avg_complexity': sum(f.get('complexity', 1) for file in ast_results.get('files', []) for f in file.get('functions', [])) / max(1, summary.get('total_functions', 1)),
-        'test_coverage': 50
+        'issue_close_rate': issue_close_rate,
+        'pr_merge_rate': pr_merge_rate
     }
     health_report = generate_health_report(health_metrics)
     print(f"  ✓ 健康评分: {health_report['score']} (等级: {health_report['grade']})")
+    for key, val in health_report.get('details', {}).items():
+        print(f"      {key}: {val}")
     save_json(health_report, os.path.join(DATA_DIR, 'health_report.json'))
     
     # ========== 6. 生成图表 ==========
@@ -181,6 +195,9 @@ def main():
     if contributors:
         plot_top_contributors(contributors, OUTPUT_DIR)
         plot_contributions_distribution(contributors, OUTPUT_DIR)
+    
+    plot_3d_commits_by_year_month(commits, OUTPUT_DIR)
+    plot_3d_author_activity(commits, OUTPUT_DIR)
     
     text = ' '.join(c['message'] for c in commits)
     generate_wordcloud(text, OUTPUT_DIR)
