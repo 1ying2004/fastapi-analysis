@@ -3,30 +3,42 @@ FastAPI仓库深度分析工具 - 主程序
 
 集成所有分析模块，提供完整的仓库分析功能
 使用技术栈：ast, libcst, pysnooper, z3-solver
+
+功能模块：
+- Git历史采集和分析
+- GitHub Issues/PR采集
+- 贡献者分析
+- AST静态代码分析
+- 依赖关系分析
+- 可视化图表生成
 """
 from src.collectors.git_collector import get_commits, save_to_csv, save_to_json, get_file_stats
 from src.collectors.branch_collector import get_branches
 from src.collectors.tag_collector import get_tags
+from src.collectors.issues_collector import IssuesCollector
+from src.collectors.contributors_collector import ContributorsCollector
 from src.analyzers.ast_analyzer import analyze_project_ast
 from src.analyzers.stats import generate_report
 from src.analyzers.message_analyzer import analyze_messages
 from src.analyzers.loc_counter import analyze_project_loc
+from src.analyzers.dependency_analyzer import build_dependency_graph
+from src.analyzers.health_scorer import generate_health_report
 from src.visualizers.charts import plot_commits_by_year, plot_author_pie, generate_wordcloud
 from src.visualizers.heatmap import plot_commit_heatmap
 from src.visualizers.trends import plot_monthly_trend, plot_cumulative
 from src.visualizers.author_charts import plot_top_authors
 from src.visualizers.file_charts import plot_file_types, plot_loc_bar
 from src.visualizers.complexity_charts import plot_complexity_distribution, plot_function_count_by_file
-from src.visualizers.message_charts import plot_message_types, plot_message_bar
+from src.visualizers.message_charts import plot_commit_types
 from src.visualizers.yearly_charts import plot_yearly_comparison
 from src.visualizers.dependency_charts import plot_import_frequency, plot_file_dependencies
-from src.analyzers.dependency_analyzer import build_dependency_graph
+from src.visualizers.issues_charts import plot_issues_by_state, plot_issues_timeline
+from src.visualizers.contributors_charts import plot_top_contributors, plot_contributions_distribution
 from src.visualizers.report import generate_html_report
 from src.visualizers.font_config import configure_matplotlib
 from src.utils.persistence import ensure_data_dirs, save_json
-from src.config import REPO_PATH, DATA_DIR, OUTPUT_DIR
+from src.config import REPO_PATH, DATA_DIR, OUTPUT_DIR, GITHUB_REPO
 import os
-import json
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -35,7 +47,6 @@ configure_matplotlib()
 
 def main():
     """主程序入口"""
-    
     print("=" * 70)
     print("   FastAPI 仓库深度分析工具   ")
     print("   技术栈: ast | libcst | pysnooper | z3-solver   ")
@@ -43,8 +54,9 @@ def main():
     
     ensure_data_dirs()
     
+    # ========== 1. Git数据采集 ==========
     print("\n" + "=" * 70)
-    print("[1/6] 数据采集")
+    print("[1/7] Git数据采集")
     print("=" * 70)
     
     commits = get_commits(REPO_PATH)
@@ -61,8 +73,32 @@ def main():
     tags = get_tags(REPO_PATH)
     print(f"  ✓ 分支: {len(branches)} | 标签: {len(tags)}")
     
+    # ========== 2. GitHub API采集 ==========
     print("\n" + "=" * 70)
-    print("[2/6] AST代码分析")
+    print("[2/7] GitHub数据采集 (Issues/PR/Contributors)")
+    print("=" * 70)
+    
+    issues_collector = IssuesCollector(GITHUB_REPO)
+    contributors_collector = ContributorsCollector(GITHUB_REPO)
+    
+    print("  采集Issues...")
+    issues = issues_collector.fetch_issues()
+    issues_collector.save_issues(issues)
+    print(f"  ✓ Issues: {len(issues)} 条")
+    
+    print("  采集PRs...")
+    prs = issues_collector.fetch_pull_requests()
+    issues_collector.save_prs(prs)
+    print(f"  ✓ PRs: {len(prs)} 条")
+    
+    print("  采集贡献者...")
+    contributors = contributors_collector.fetch_contributors()
+    contributors_collector.save_contributors(contributors)
+    print(f"  ✓ 贡献者: {len(contributors)} 位")
+    
+    # ========== 3. AST代码分析 ==========
+    print("\n" + "=" * 70)
+    print("[3/7] AST代码分析")
     print("=" * 70)
     
     ast_results = analyze_project_ast(REPO_PATH)
@@ -73,13 +109,15 @@ def main():
     
     save_json(ast_results, os.path.join(DATA_DIR, 'ast_analysis.json'))
     
+    # ========== 4. 统计分析 ==========
     print("\n" + "=" * 70)
-    print("[3/6] 统计分析")
+    print("[4/7] 统计分析")
     print("=" * 70)
     
     report = generate_report(commits)
     msg_stats = analyze_messages(commits)
     loc_stats = analyze_project_loc(REPO_PATH)
+    dep_graph = build_dependency_graph(REPO_PATH)
     
     print(f"  ✓ 贡献者: {report['unique_authors']}")
     print(f"  ✓ 代码行数: {loc_stats['code']:,}")
@@ -87,9 +125,26 @@ def main():
     
     save_json(report, os.path.join(DATA_DIR, 'report.json'))
     save_json(loc_stats, os.path.join(DATA_DIR, 'loc_stats.json'))
+    save_json(msg_stats, os.path.join(DATA_DIR, 'message_stats.json'))
     
+    # ========== 5. 健康评分 ==========
     print("\n" + "=" * 70)
-    print("[4/6] 生成图表")
+    print("[5/7] 项目健康评分")
+    print("=" * 70)
+    
+    health_metrics = {
+        'total_commits': len(commits),
+        'contributors': len(contributors),
+        'avg_complexity': sum(f.get('complexity', 1) for file in ast_results.get('files', []) for f in file.get('functions', [])) / max(1, summary.get('total_functions', 1)),
+        'test_coverage': 50
+    }
+    health_report = generate_health_report(health_metrics)
+    print(f"  ✓ 健康评分: {health_report['score']} (等级: {health_report['grade']})")
+    save_json(health_report, os.path.join(DATA_DIR, 'health_report.json'))
+    
+    # ========== 6. 生成图表 ==========
+    print("\n" + "=" * 70)
+    print("[6/7] 生成图表")
     print("=" * 70)
     
     plot_commits_by_year(commits, OUTPUT_DIR)
@@ -102,20 +157,25 @@ def main():
     plot_loc_bar(loc_stats, OUTPUT_DIR)
     plot_complexity_distribution(ast_results, OUTPUT_DIR)
     plot_function_count_by_file(ast_results, OUTPUT_DIR)
-    
-    plot_message_types(msg_stats, OUTPUT_DIR)
-    plot_message_bar(msg_stats, OUTPUT_DIR)
+    plot_commit_types(msg_stats, OUTPUT_DIR)
     plot_yearly_comparison(commits, OUTPUT_DIR)
-    
-    dep_graph = build_dependency_graph(REPO_PATH)
     plot_import_frequency(dep_graph, OUTPUT_DIR)
     plot_file_dependencies(dep_graph, OUTPUT_DIR)
+    
+    if issues:
+        plot_issues_by_state(issues, OUTPUT_DIR)
+        plot_issues_timeline(issues, OUTPUT_DIR)
+    
+    if contributors:
+        plot_top_contributors(contributors, OUTPUT_DIR)
+        plot_contributions_distribution(contributors, OUTPUT_DIR)
     
     text = ' '.join(c['message'] for c in commits)
     generate_wordcloud(text, OUTPUT_DIR)
     
+    # ========== 7. 生成报告 ==========
     print("\n" + "=" * 70)
-    print("[5/6] 生成报告")
+    print("[7/7] 生成报告")
     print("=" * 70)
     
     generate_html_report(commits)
@@ -123,17 +183,23 @@ def main():
     summary_data = {
         'total_commits': len(commits),
         'contributors': report['unique_authors'],
+        'github_contributors': len(contributors),
+        'issues': len(issues),
+        'prs': len(prs),
         'branches': len(branches),
         'tags': len(tags),
         'code_lines': loc_stats['code'],
         'functions': summary.get('total_functions', 0),
         'classes': summary.get('total_classes', 0),
+        'health_score': health_report['score'],
+        'health_grade': health_report['grade'],
         'message_types': msg_stats
     }
     save_json(summary_data, os.path.join(OUTPUT_DIR, 'summary.json'))
     
+    # ========== 完成 ==========
     print("\n" + "=" * 70)
-    print("[6/6] 完成!")
+    print("分析完成!")
     print("=" * 70)
     
     print(f"\n  📁 数据目录: {DATA_DIR}/")
@@ -141,10 +207,8 @@ def main():
         print(f"      • {f}")
     
     print(f"\n  📊 图表目录: {OUTPUT_DIR}/")
-    for f in os.listdir(OUTPUT_DIR):
-        if f.endswith('.png'):
-            print(f"      • {f}")
-    
+    chart_count = len([f for f in os.listdir(OUTPUT_DIR) if f.endswith('.png')])
+    print(f"      共 {chart_count} 张图表")
     
     print("\n" + "=" * 70)
 

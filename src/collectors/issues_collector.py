@@ -27,7 +27,7 @@ class IssuesCollector:
         self.data_dir = 'data'
         os.makedirs(self.data_dir, exist_ok=True)
     
-    def fetch_issues(self, state='all', max_pages=50):
+    def fetch_issues(self, state='all', max_pages=9999):
         """
         获取issues（不含PR）
         
@@ -82,7 +82,7 @@ class IssuesCollector:
         
         return issues
     
-    def fetch_pull_requests(self, state='all', max_pages=50):
+    def fetch_pull_requests(self, state='all', max_pages=9999):
         """
         获取Pull Requests
         """

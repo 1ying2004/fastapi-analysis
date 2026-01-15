@@ -21,7 +21,7 @@ class ContributorsCollector:
         self.data_dir = 'data'
         os.makedirs(self.data_dir, exist_ok=True)
     
-    def fetch_contributors(self, max_pages=20):
+    def fetch_contributors(self, max_pages=9999):
         """
         获取贡献者列表
         

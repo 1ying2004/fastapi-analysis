@@ -41,7 +41,7 @@ def load_csv(filepath):
 
 def ensure_data_dirs():
     """确保数据目录存在"""
-    dirs = ['data', 'cache', 'logs', 'output']
+    dirs = ['data', 'cache', 'output']
     for d in dirs:
         os.makedirs(d, exist_ok=True)
     return True

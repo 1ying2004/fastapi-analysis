@@ -20,7 +20,6 @@ def ensure_directories():
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     os.makedirs('cache', exist_ok=True)
-    os.makedirs('logs', exist_ok=True)
     return True
 
 def check_dependencies():
