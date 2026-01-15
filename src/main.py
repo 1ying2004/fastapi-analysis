@@ -24,7 +24,6 @@ from src.analyzers.dependency_analyzer import build_dependency_graph
 from src.visualizers.report import generate_html_report
 from src.visualizers.font_config import configure_matplotlib
 from src.utils.persistence import ensure_data_dirs, save_json
-from src.utils.logger import logger
 from src.config import REPO_PATH, DATA_DIR, OUTPUT_DIR
 import os
 import json
