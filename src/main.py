@@ -17,6 +17,10 @@ from src.visualizers.trends import plot_monthly_trend, plot_cumulative
 from src.visualizers.author_charts import plot_top_authors
 from src.visualizers.file_charts import plot_file_types, plot_loc_bar
 from src.visualizers.complexity_charts import plot_complexity_distribution, plot_function_count_by_file
+from src.visualizers.message_charts import plot_message_types, plot_message_bar
+from src.visualizers.yearly_charts import plot_yearly_comparison
+from src.visualizers.dependency_charts import plot_import_frequency, plot_file_dependencies
+from src.analyzers.dependency_analyzer import build_dependency_graph
 from src.visualizers.report import generate_html_report
 from src.visualizers.font_config import configure_matplotlib
 from src.utils.persistence import ensure_data_dirs, save_json
@@ -100,6 +104,14 @@ def main():
     plot_loc_bar(loc_stats, OUTPUT_DIR)
     plot_complexity_distribution(ast_results, OUTPUT_DIR)
     plot_function_count_by_file(ast_results, OUTPUT_DIR)
+    
+    plot_message_types(msg_stats, OUTPUT_DIR)
+    plot_message_bar(msg_stats, OUTPUT_DIR)
+    plot_yearly_comparison(commits, OUTPUT_DIR)
+    
+    dep_graph = build_dependency_graph(REPO_PATH)
+    plot_import_frequency(dep_graph, OUTPUT_DIR)
+    plot_file_dependencies(dep_graph, OUTPUT_DIR)
     
     text = ' '.join(c['message'] for c in commits)
     generate_wordcloud(text, OUTPUT_DIR)
