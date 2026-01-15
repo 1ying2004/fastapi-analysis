@@ -35,7 +35,6 @@ configure_matplotlib()
 
 def main():
     """主程序入口"""
-    logger.info("开始分析")
     
     print("=" * 70)
     print("   FastAPI 仓库深度分析工具   ")
@@ -146,7 +145,7 @@ def main():
         if f.endswith('.png'):
             print(f"      • {f}")
     
-    logger.info("分析完成")
+    
     print("\n" + "=" * 70)
 
 
