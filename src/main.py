@@ -23,6 +23,7 @@ from src.analyzers.message_analyzer import analyze_messages
 from src.analyzers.loc_counter import analyze_project_loc
 from src.analyzers.dependency_analyzer import build_dependency_graph
 from src.analyzers.health_scorer import generate_health_report
+from src.analyzers.pr_analyzer import analyze_prs, analyze_issues
 from src.visualizers.charts import plot_commits_by_year, plot_author_pie, generate_wordcloud
 from src.visualizers.heatmap import plot_commit_heatmap
 from src.visualizers.trends import plot_monthly_trend, plot_cumulative
@@ -32,8 +33,9 @@ from src.visualizers.complexity_charts import plot_complexity_distribution, plot
 from src.visualizers.message_charts import plot_commit_types
 from src.visualizers.yearly_charts import plot_yearly_comparison
 from src.visualizers.dependency_charts import plot_import_frequency, plot_file_dependencies
-from src.visualizers.issues_charts import plot_issues_by_state, plot_issues_timeline
+from src.visualizers.issues_charts import plot_issues_by_state, plot_issues_timeline, plot_top_issue_authors
 from src.visualizers.contributors_charts import plot_top_contributors, plot_contributions_distribution
+from src.visualizers.pr_charts import plot_pr_state, plot_pr_timeline, plot_top_pr_authors
 from src.visualizers.report import generate_html_report
 from src.visualizers.font_config import configure_matplotlib
 from src.utils.persistence import ensure_data_dirs, save_json
@@ -165,6 +167,16 @@ def main():
     if issues:
         plot_issues_by_state(issues, OUTPUT_DIR)
         plot_issues_timeline(issues, OUTPUT_DIR)
+        plot_top_issue_authors(issues, OUTPUT_DIR)
+        issues_analysis = analyze_issues(issues)
+        save_json(issues_analysis, os.path.join(DATA_DIR, 'issues_analysis.json'))
+    
+    if prs:
+        plot_pr_state(prs, OUTPUT_DIR)
+        plot_pr_timeline(prs, OUTPUT_DIR)
+        plot_top_pr_authors(prs, OUTPUT_DIR)
+        prs_analysis = analyze_prs(prs)
+        save_json(prs_analysis, os.path.join(DATA_DIR, 'prs_analysis.json'))
     
     if contributors:
         plot_top_contributors(contributors, OUTPUT_DIR)
