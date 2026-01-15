@@ -1,12 +1,11 @@
 """
 FastAPI仓库深度分析工具 - 主程序
 
-集成所有分析模块，提供完整的仓库分析功能
-使用技术栈：ast, libcst, pysnooper, z3-solver
-
 用法:
-    python src/main.py          # 完整分析（使用缓存数据）
-    python src/main.py --fetch  # 仅获取全量数据（无限等待）
+    python src/main.py              # 完整分析（跳过GitHub获取，使用缓存数据）
+    python src/main.py --fetch      # 交互式选择获取哪些数据
+    python src/main.py --fetch all  # 获取全部数据
+    python src/main.py --fetch issues/prs/contributors  # 获取指定数据
 """
 import sys
 import os
@@ -15,8 +14,6 @@ import warnings
 from src.collectors.git_collector import get_commits, save_to_csv, save_to_json, get_file_stats
 from src.collectors.branch_collector import get_branches
 from src.collectors.tag_collector import get_tags
-from src.collectors.issues_collector import IssuesCollector
-from src.collectors.contributors_collector import ContributorsCollector
 from src.analyzers.ast_analyzer import analyze_project_ast
 from src.analyzers.stats import generate_report
 from src.analyzers.message_analyzer import analyze_messages
@@ -39,49 +36,96 @@ from src.visualizers.charts_3d import plot_3d_commits_by_year_month, plot_3d_aut
 from src.visualizers.font_config import configure_matplotlib
 from src.utils.persistence import ensure_data_dirs, save_json
 from src.config import REPO_PATH, DATA_DIR, OUTPUT_DIR, GITHUB_REPO
+import json
 
 warnings.filterwarnings('ignore')
 configure_matplotlib()
 
 
-def fetch_all_data():
-    """仅获取全量数据模式（无超时限制）"""
+def load_cached_data(filename):
+    """加载缓存数据"""
+    filepath = os.path.join(DATA_DIR, filename)
+    if os.path.exists(filepath):
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return []
+
+
+def fetch_data_interactive():
+    """交互式选择获取数据"""
     print("=" * 70)
-    print("   数据获取模式 - 获取全量GitHub数据")
-    print("   注意: 此模式会完整等待API限流")
+    print("   数据获取模式")
     print("=" * 70)
+    print("\n请选择要获取的数据:")
+    print("  1. Issues (全量，包含open和closed)")
+    print("  2. Pull Requests (全量)")
+    print("  3. Contributors (全量)")
+    print("  4. 全部")
+    print("  0. 退出")
+    
+    choice = input("\n请输入选项 (可多选，如 1,2): ").strip()
+    
+    if choice == '0':
+        return
+    
+    from src.collectors.issues_collector_full import IssuesCollectorFull
+    from src.collectors.contributors_collector_full import ContributorsCollectorFull
+    
+    collector = IssuesCollectorFull(GITHUB_REPO)
+    contrib_collector = ContributorsCollectorFull(GITHUB_REPO)
+    
+    choices = choice.replace(' ', '').split(',')
+    
+    if '4' in choices or 'all' in choice.lower():
+        choices = ['1', '2', '3']
+    
+    if '1' in choices:
+        print("\n[获取Issues...]")
+        collector.fetch_all_issues()
+    
+    if '2' in choices:
+        print("\n[获取Pull Requests...]")
+        collector.fetch_all_prs()
+    
+    if '3' in choices:
+        print("\n[获取Contributors...]")
+        contrib_collector.fetch_all()
+    
+    print("\n获取完成!")
+
+
+def fetch_specific(target):
+    """获取指定数据"""
+    from src.collectors.issues_collector_full import IssuesCollectorFull
+    from src.collectors.contributors_collector_full import ContributorsCollectorFull
     
     ensure_data_dirs()
-    
-    print("\n[1/4] Git数据...")
-    commits = get_commits(REPO_PATH)
-    print(f"  ✓ 提交: {len(commits):,}")
-    save_to_csv(commits, DATA_DIR)
-    save_to_json(commits, DATA_DIR)
-    
-    print("\n[2/4] Issues...")
-    from src.collectors.issues_collector_full import IssuesCollectorFull
     collector = IssuesCollectorFull(GITHUB_REPO)
-    issues = collector.fetch_all_issues()
-    print(f"  ✓ Issues: {len(issues)}")
-    
-    print("\n[3/4] Pull Requests...")
-    prs = collector.fetch_all_prs()
-    print(f"  ✓ PRs: {len(prs)}")
-    
-    print("\n[4/4] Contributors...")
-    from src.collectors.contributors_collector_full import ContributorsCollectorFull
     contrib_collector = ContributorsCollectorFull(GITHUB_REPO)
-    contributors = contrib_collector.fetch_all()
-    print(f"  ✓ Contributors: {len(contributors)}")
     
-    print("\n" + "=" * 70)
-    print("数据获取完成!")
-    print("=" * 70)
+    if target == 'all':
+        print("\n[1/3] 获取Issues...")
+        collector.fetch_all_issues()
+        print("\n[2/3] 获取Pull Requests...")
+        collector.fetch_all_prs()
+        print("\n[3/3] 获取Contributors...")
+        contrib_collector.fetch_all()
+    elif target == 'issues':
+        print("\n获取Issues...")
+        collector.fetch_all_issues()
+    elif target == 'prs':
+        print("\n获取Pull Requests...")
+        collector.fetch_all_prs()
+    elif target == 'contributors':
+        print("\n获取Contributors...")
+        contrib_collector.fetch_all()
+    else:
+        print(f"未知目标: {target}")
+        print("可用: all, issues, prs, contributors")
 
 
 def main():
-    """主程序入口"""
+    """主程序入口 - 使用缓存数据分析"""
     print("=" * 70)
     print("   FastAPI 仓库深度分析工具   ")
     print("   技术栈: ast | libcst | pysnooper | z3-solver   ")
@@ -90,7 +134,7 @@ def main():
     ensure_data_dirs()
     
     print("\n" + "=" * 70)
-    print("[1/5] Git数据采集")
+    print("[1/4] Git数据采集")
     print("=" * 70)
     
     commits = get_commits(REPO_PATH)
@@ -108,29 +152,22 @@ def main():
     print(f"  ✓ 分支: {len(branches)} | 标签: {len(tags)}")
     
     print("\n" + "=" * 70)
-    print("[2/5] GitHub数据采集")
+    print("[2/4] 加载GitHub缓存数据")
     print("=" * 70)
     
-    issues_collector = IssuesCollector(GITHUB_REPO)
-    contributors_collector = ContributorsCollector(GITHUB_REPO)
+    issues = load_cached_data('issues.json')
+    prs = load_cached_data('pull_requests.json')
+    contributors = load_cached_data('contributors.json')
     
-    print("  采集Issues...")
-    issues = issues_collector.fetch_issues()
-    issues_collector.save_issues(issues)
-    print(f"  ✓ Issues: {len(issues)} 条")
+    print(f"  ✓ Issues: {len(issues)} 条 (缓存)")
+    print(f"  ✓ PRs: {len(prs)} 条 (缓存)")
+    print(f"  ✓ Contributors: {len(contributors)} 位 (缓存)")
     
-    print("  采集PRs...")
-    prs = issues_collector.fetch_pull_requests()
-    issues_collector.save_prs(prs)
-    print(f"  ✓ PRs: {len(prs)} 条")
-    
-    print("  采集贡献者...")
-    contributors = contributors_collector.fetch_contributors()
-    contributors_collector.save_contributors(contributors)
-    print(f"  ✓ 贡献者: {len(contributors)} 位")
+    if not issues and not prs:
+        print("  ⚠ 无缓存数据，请先运行: python src/main.py --fetch")
     
     print("\n" + "=" * 70)
-    print("[3/5] AST代码分析")
+    print("[3/4] AST代码分析 & 统计")
     print("=" * 70)
     
     ast_results = analyze_project_ast(REPO_PATH)
@@ -141,25 +178,19 @@ def main():
     
     save_json(ast_results, os.path.join(DATA_DIR, 'ast_analysis.json'))
     
-    print("\n" + "=" * 70)
-    print("[4/5] 统计分析")
-    print("=" * 70)
-    
     report = generate_report(commits)
     msg_stats = analyze_messages(commits)
     loc_stats = analyze_project_loc(REPO_PATH)
     dep_graph = build_dependency_graph(REPO_PATH)
     
-    print(f"  ✓ 贡献者: {report['unique_authors']}")
     print(f"  ✓ 代码行数: {loc_stats['code']:,}")
-    print(f"  ✓ 注释行数: {loc_stats['comment']:,}")
     
     save_json(report, os.path.join(DATA_DIR, 'report.json'))
     save_json(loc_stats, os.path.join(DATA_DIR, 'loc_stats.json'))
     save_json(msg_stats, os.path.join(DATA_DIR, 'message_stats.json'))
     
     print("\n" + "=" * 70)
-    print("[5/5] 生成图表")
+    print("[4/4] 生成图表")
     print("=" * 70)
     
     plot_commits_by_year(commits, OUTPUT_DIR)
@@ -211,8 +242,7 @@ def main():
         'tags': len(tags),
         'code_lines': loc_stats['code'],
         'functions': summary.get('total_functions', 0),
-        'classes': summary.get('total_classes', 0),
-        'message_types': msg_stats
+        'classes': summary.get('total_classes', 0)
     }
     save_json(summary_data, os.path.join(OUTPUT_DIR, 'summary.json'))
     
@@ -220,19 +250,17 @@ def main():
     print("分析完成!")
     print("=" * 70)
     
-    print(f"\n  📁 数据目录: {DATA_DIR}/")
-    for f in os.listdir(DATA_DIR):
-        print(f"      • {f}")
-    
-    print(f"\n  📊 图表目录: {OUTPUT_DIR}/")
     chart_count = len([f for f in os.listdir(OUTPUT_DIR) if f.endswith('.png')])
-    print(f"      共 {chart_count} 张图表")
-    
+    print(f"\n  📊 生成 {chart_count} 张图表")
     print("\n" + "=" * 70)
 
 
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == '--fetch':
-        fetch_all_data()
+        ensure_data_dirs()
+        if len(sys.argv) > 2:
+            fetch_specific(sys.argv[2])
+        else:
+            fetch_data_interactive()
     else:
         main()
