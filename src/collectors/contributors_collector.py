@@ -1,7 +1,7 @@
 """
-Contributors采集模块
+Contributors采集模块 - 全量版
 
-获取GitHub贡献者数据
+获取GitHub贡献者数据，支持增量持久化和实时热存储
 """
 import requests
 import json
@@ -10,7 +10,7 @@ import time
 
 
 class ContributorsCollector:
-    """GitHub贡献者采集器"""
+    """GitHub贡献者全量采集器"""
     
     def __init__(self, repo, token=None):
         self.repo = repo
@@ -20,18 +20,33 @@ class ContributorsCollector:
             self.headers['Authorization'] = f'token {token}'
         self.data_dir = 'data'
         os.makedirs(self.data_dir, exist_ok=True)
-    
-    def fetch_contributors(self, max_pages=9999):
-        """
-        获取贡献者列表
         
-        Returns:
-            贡献者列表
-        """
-        contributors = []
+        self.contributors_file = os.path.join(self.data_dir, 'contributors.json')
+    
+    def _load_existing(self):
+        """加载已有数据"""
+        if os.path.exists(self.contributors_file):
+            try:
+                with open(self.contributors_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except:
+                pass
+        return []
+    
+    def _save_realtime(self, data):
+        """实时热存储"""
+        with open(self.contributors_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    
+    def fetch_contributors(self):
+        """获取全部贡献者"""
+        existing = self._load_existing()
+        existing_logins = {c.get('login') for c in existing if c.get('login')}
+        
+        all_contributors = list(existing)
         page = 1
         
-        while page <= max_pages:
+        while True:
             url = f"{self.base_url}/repos/{self.repo}/contributors"
             params = {'page': page, 'per_page': 100, 'anon': 'true'}
             
@@ -39,11 +54,14 @@ class ContributorsCollector:
                 resp = requests.get(url, headers=self.headers, params=params, timeout=30)
                 
                 if resp.status_code == 403:
-                    print("  ⚠ API限流，等待60秒...")
-                    time.sleep(60)
+                    reset_time = int(resp.headers.get('X-RateLimit-Reset', 0))
+                    wait_time = max(reset_time - int(time.time()), 60)
+                    print(f"  ⚠ API限流，等待{wait_time}秒...")
+                    time.sleep(wait_time)
                     continue
                 
                 if resp.status_code != 200:
+                    print(f"  ✗ 请求失败: {resp.status_code}")
                     break
                 
                 data = resp.json()
@@ -51,14 +69,21 @@ class ContributorsCollector:
                     break
                 
                 for item in data:
-                    contributors.append({
-                        'login': item.get('login', 'Anonymous'),
-                        'contributions': item['contributions'],
-                        'type': item.get('type', 'Anonymous'),
-                        'avatar_url': item.get('avatar_url', '')
-                    })
+                    login = item.get('login', 'Anonymous')
+                    if login not in existing_logins:
+                        contributor = {
+                            'login': login,
+                            'contributions': item['contributions'],
+                            'type': item.get('type', 'Anonymous'),
+                            'avatar_url': item.get('avatar_url', ''),
+                            'html_url': item.get('html_url', '')
+                        }
+                        all_contributors.append(contributor)
+                        existing_logins.add(login)
                 
-                print(f"  获取第{page}页，累计{len(contributors)}位贡献者")
+                self._save_realtime(all_contributors)
+                
+                print(f"  获取第{page}页，累计{len(all_contributors)}位贡献者")
                 page += 1
                 time.sleep(0.5)
                 
@@ -66,7 +91,7 @@ class ContributorsCollector:
                 print(f"  ✗ 错误: {e}")
                 break
         
-        return contributors
+        return all_contributors
     
     def save_contributors(self, contributors, filename='contributors.json'):
         """保存贡献者数据"""
@@ -81,7 +106,7 @@ class ContributorsCollector:
             return {}
         
         total = sum(c['contributions'] for c in contributors)
-        top10 = contributors[:10]
+        top10 = sorted(contributors, key=lambda x: -x['contributions'])[:10]
         
         return {
             'total_contributors': len(contributors),
